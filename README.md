@@ -46,7 +46,7 @@ __init__ args:
 Methods:
 - load_embeds_into_memory: Given a model and pooler, processes all embeddings and stores them
 - \_\_len\_\_
-- __getitem__
+- \_\_getitem\_\_
 
 ## LMModel
 Language model model, takes huggingface name or a dict {'model':model, 'tokenizer':tokenizer}
