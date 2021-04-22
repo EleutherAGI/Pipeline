@@ -4,8 +4,19 @@ We want to gain useful generalizable knowledge about the inner workings of non-f
 # How to use
 1. Prepare data by running get_data.py -data_save_path
 2. Create classifiers
-3. Call run_exp
-4. Visualise
+Classifiers come in two flavours: sklearn and pytorch. Sklearn style classifiers (SingleStepOpt) get fitted by a single step and depending on the output, require a set of thresholds to be found. Pytorch style classifiers (MultiStepOpt) use gradient descent and are optimizer over multiple training epochs.
+In both cases they need an input_size argument and a name for logging.
+Sklearn classifiers need a classifier and a bool whether or not the targets are discrete (binary). For example
+``` py
+def f(x):
+
+```
+Pytorch classifiers need a forward method.
+
+forward
+
+4. Call run_exp
+5. Visualise
 
 # How it works
 The program consists of the following parts
