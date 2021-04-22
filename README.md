@@ -40,7 +40,13 @@ The program consists of the following parts
 ## NLPDataset
 This loads the text into a class. Can be given either a path to a data-json file or dict.
 
-load_embeds_into_memory prepares and pools the whole dataset
+__init__ args:
+- json_input: Path to dataset json file or loaded json file itself
+
+Methods:
+- load_embeds_into_memory: Given a model and pooler, processes all embeddings and stores them
+- __len__
+- __getitem__
 
 ## LMModel
 Language model model, takes huggingface name or a dict {'model':model, 'tokenizer':tokenizer}
