@@ -40,7 +40,7 @@ The program consists of the following parts
 ## NLPDataset
 This loads the text into a class. Can be given either a path to a data-json file or dict.
 
-__init__ args:
+\_\_init\_\_ args:
 - json_input: Path to dataset json file or loaded json file itself
 
 Methods:
@@ -49,9 +49,13 @@ Methods:
 - \_\_getitem\_\_
 
 ## LMModel
-Language model model, takes huggingface name or a dict {'model':model, 'tokenizer':tokenizer}
+(Hugging Face) Language Model Wrapper
 
-its forward takes a list of texts and outputs a dictionary
+init args:
+- model_name: Hugging face model name or dictionary that contains a model and tokenizer
+
+Methods:
+- \_\_call\_\_: Takes a list of strings and returns Hugging face style output dictionary
 
 ## PoolToken
 pools tokens from the output dictionary
