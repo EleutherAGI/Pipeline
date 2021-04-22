@@ -45,7 +45,7 @@ __init__ args:
 
 Methods:
 - load_embeds_into_memory: Given a model and pooler, processes all embeddings and stores them
-- __len__
+- \_\_len\_\_
 - __getitem__
 
 ## LMModel
