@@ -35,7 +35,7 @@ forward
 4. Call run_exp
 5. Visualise
 
-# How it works
+# Modules
 The program consists of the following parts
 ## NLPDataset
 This loads the text into a class. Can be given either a path to a data-json file or dict.
@@ -58,16 +58,23 @@ Methods:
 - \_\_call\_\_: Takes a list of strings and returns Hugging face style output dictionary
 
 ## PoolToken
-pools tokens from the output dictionary
+Selects (combinations of) tokens from hugging face output dictionary
 
-it supports selection of layers and quantiles
+\_\_init\_\_ args:
+layer: Which layer the tokens are to be selected from
+-- layer index
+-- list of layer indices
+-- -1: second to last layer
+-- 'all': all layers except the first and last one
+quantile: Which quantile of tokens is selected (0. = first token, 1. = last)
+-- quantile
+-- -1: last token
+layer_method: If multiple layers are selected, layer_method can be used to reduce them
+-- 'mean', 'max', 'min': pool over layer dimension
+-- 'extend': concatenates embeddings in embed dimension
 
-layer: single number to select one, list to select multiple, 'all' to select all, -1 to select last
-    layer excludes first and last layer by default, can be overwritten by giving single number
-    quantile: -1 or 1.0 to select last, all to select all, list to select multiple (might cause double instances)
-methods: mean, max, min, extend, concat
-    extend adds samples along the embed axis, concat adds them to a new axis
-    can only concat one
+Methods:
+- \_\_call\_\_: Takes hugging face output dictionary and returns (batch_size, hidden_size) sized tensor of embeddings
     
 ## evaluator
 returns MSE for regression and MSE, accuracy and F1 for binary
@@ -78,3 +85,6 @@ This corresponds to sklearn style optimizers
 
 ### MultiStepOpt
 Pytorch style neural nets
+
+# TODO
+- make concat work properly
