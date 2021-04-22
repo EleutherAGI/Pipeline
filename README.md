@@ -1,7 +1,7 @@
 # Purpose
 We want to gain useful generalizable knowledge about the inner workings of non-finetuned transformer language models. We achieve this by running a number of experiments to probe the hidden layer activations using different datasets, model sizes, pooling methods and classifiers, and visualize this interactively with a StreamLit app. This information will help us in future embedding experiments and eegi, among other things.
 
-# How to use
+# Usage
 1. Prepare data by the running get_data.py script: ```python get_data <data_save_path>```
 2. Create classifiers
 Classifiers come in two flavours: sklearn and pytorch, these are taken care off by the base classes SingleStepOpt and MultiStepOpt resp. (See Modules section).
@@ -145,19 +145,7 @@ Methods:
 
 # TODO
 - make concat work properly
-- store val_size, test_size
-# TODO
-# pooler
-# logging
-# run experiments to check hypotheses 
-# BERT type models
-
-# # What classification architecture works best?
-    \item How does this generalize over different dataset and model sizes?
-    \item How do unsupervised methods hold up vs. supervised ones?
-    \item Is there transfer of knowledge between datasets, e.g. does a model trained on normativity classification perform well on sentiment classification
-
-# logging
-# pooler
-# number of params per model
-# attention
+- log val_size, test_size
+- add classification using attention
+- BERT type models
+- log number of params per model
