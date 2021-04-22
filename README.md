@@ -37,8 +37,28 @@ class SingleLayer(MultiStepOpt):
         return self.linear(X)
 ```
 
-4. Call run_exp
-5. Visualise
+4. Call run_exp. For example
+``` py
+import glob
+from pipeline.dataset import NLPDataset
+from pipeline.languagemodel import LMModel
+from pipeline.pooling import PoolToken
+from pipeline.classifier import SingleStepOpt, MultiStepOpt
+from pipeline.experiment import RunExperiments, evaluator
+from classifiers import LDA, SingleLayer
+
+device = 'cuda' if torch.cuda.is_available() else 'cpu'
+n_folds = 10
+dataset_paths = glob.glob('data/*')
+poolers = [PoolToken(layer = 1), PoolToken(quantile = 0.4), PoolToken(layer = 'all', layer_method = 'mean')]
+classifiers = [LDA(), SingleLayer()]
+model_names = ['gpt2', 'gpt2-large']
+
+exps = RunExperiments(n_folds, dataset_paths, poolers, classifiers, model_names, evaluator, device)
+exps.run_all()
+```
+
+5. Visualise: run streamlit_app.py: ```streamlit run streamlit_app.py```
 
 # Modules
 The program consists of the following parts
