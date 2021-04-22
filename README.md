@@ -4,8 +4,11 @@ We want to gain useful generalizable knowledge about the inner workings of non-f
 # How to use
 1. Prepare data by the running get_data.py script. -data_save_path
 2. Create classifiers
-Classifiers come in two flavours: sklearn and pytorch. Sklearn style classifiers (SingleStepOpt) get fitted by a single step and depending on the output, require a set of thresholds to be found. Pytorch style classifiers (MultiStepOpt) use gradient descent and are optimizer over multiple training epochs.
-In both cases they need an input_size argument and a name for logging.
+Classifiers come in two flavours: sklearn and pytorch.
+
+
+BaseClass Sklearn style classifiers (SingleStepOpt) get fitted by a single step and depending on the output, require a set of thresholds to be found. Pytorch style classifiers (MultiStepOpt) use gradient descent and are optimizer over multiple training epochs.
+In both cases they need an input_size argument and a str name attribute for logging.
 Sklearn classifiers need a classifier and a bool whether or not the targets are discrete (binary). For example
 ``` py
 class LDA(SingleStepOpt):
