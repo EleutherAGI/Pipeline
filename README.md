@@ -56,7 +56,7 @@ exps = RunExperiments(n_folds, dataset_paths, poolers, classifiers, model_names,
 exps.run_all()
 ```
 
-5. Visualise: run streamlit_app.py: ```streamlit run streamlit_app.py```
+5. Visualise: run visualisation_experiments.py: ```streamlit run streamlit_app.py```
 
 # Modules
 The program consists of the following parts
