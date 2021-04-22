@@ -8,9 +8,10 @@ Classifiers come in two flavours: sklearn and pytorch, these are taken care off 
 
 In both cases they need an input_size argument and a str name attribute for logging.
 Sklearn-type classifiers need the attributes:
-- s
-- d
-a classifier attribute and a bool whether or not the targets are discrete (binary). For example
+- name: identifier name for logging
+- classifier: sklearn classifier. Needs to have a fit and transform method. If transform is not available the forward methods needs to be overwritten.
+- discrete_targets: boolean to indicate whether the classifier requires binary (0 or 1) targets.
+For example
 ``` py
 class LDA(SingleStepOpt):
     def __init__(self, input_size):
@@ -19,7 +20,10 @@ class LDA(SingleStepOpt):
         self.discrete_targets = True
         self.classifier = LinearDiscriminantAnalysis(n_components=1)
 ```
-Pytorch classifiers need a forward method. For example
+Pytorch-type classifiers need
+- name attribute: identifier name for logging
+- forward method
+- For example
 ``` py
 class SingleLayer(MultiStepOpt):
     def __init__(self, input_size):
@@ -30,8 +34,6 @@ class SingleLayer(MultiStepOpt):
     def forward(self, X):
         return self.linear(X)
 ```
-
-forward
 
 4. Call run_exp
 5. Visualise
