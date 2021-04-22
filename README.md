@@ -75,16 +75,38 @@ Selects (combinations of) tokens from hugging face output dictionary
 
 Methods:
 - \_\_call\_\_: Takes hugging face output dictionary and returns (batch_size, hidden_size) sized tensor of embeddings
+
+## Classifiers
+### SingleStepOpt
+Base class for pytorch style classifiers
+
+\_\_init\_\_ args: None
+
+Methods:
+- init_optimizer: Initializes optimizer, scheduler and loss function
+- training_step: Training step used in fit method
+- test_step: Test step used in fit method for validation and in predict to get predictions
+- fit: Training loop, stores losses
+- predict: Given testset, returns its corresponding predictions from the classifier
+
+### MultiStepOpt
+Base class for pytorch style classifiers
+
+\_\_init\_\_ args:
+- batch_size
+- max_epoch
+
+Methods:
+- init_optimizer: Initializes optimizer, scheduler and loss function
+- training_step: Training step used in fit method
+- test_step: Test step used in fit method for validation and in predict to get predictions
+- fit: Training loop, stores losses
+- predict: Given testset, returns its corresponding predictions from the classifier
     
 ## evaluator
 returns MSE for regression and MSE, accuracy and F1 for binary
 
-## Classifiers
-### SingleStepOpt
-This corresponds to sklearn style optimizers
 
-### MultiStepOpt
-Pytorch style neural nets
 
 # TODO
 - make concat work properly
