@@ -9,8 +9,8 @@ In both cases they need an input_size argument and a name for logging.
 Sklearn classifiers need a classifier and a bool whether or not the targets are discrete (binary). For example
 ``` py
 class LDA(SingleStepOpt):
-    def __init__(self):
-        super().__init__(input_size)
+    def __init__(self, input_size):
+        super().__init__()
         self.name = 'LDA'
         self.discrete_targets = True
         self.classifier = LinearDiscriminantAnalysis(n_components=1)
@@ -18,8 +18,8 @@ class LDA(SingleStepOpt):
 Pytorch classifiers need a forward method. For example
 ``` py
 class SingleLayer(MultiStepOpt):
-    def __init__(self):
-        super().__init__(input_size)
+    def __init__(self, input_size):
+        super().__init__()
         self.name = 'SingleLayer'
         self.linear = nn.Linear(input_size, 1)
     
