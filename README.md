@@ -11,6 +11,7 @@ Sklearn-type classifiers need the attributes:
 - name: identifier name for logging
 - classifier: sklearn classifier. Needs to have a fit and transform method. If transform is not available the forward methods needs to be overwritten.
 - discrete_targets: boolean to indicate whether the classifier requires binary (0 or 1) targets.
+
 For example
 ``` py
 class LDA(SingleStepOpt):
@@ -23,7 +24,8 @@ class LDA(SingleStepOpt):
 Pytorch-type classifiers need
 - name attribute: identifier name for logging
 - forward method
-- For example
+
+For example
 ``` py
 class SingleLayer(MultiStepOpt):
     def __init__(self, input_size):
