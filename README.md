@@ -103,10 +103,23 @@ Methods:
 - fit: Training loop, stores losses
 - predict: Given testset, returns its corresponding predictions from the classifier
     
-## evaluator
-returns MSE for regression and MSE, accuracy and F1 for binary
+## RunExperiments
+Runs a batch of experiments and logs them
 
+\_\_init\_\_ args:
+- n_folds: Number of folds for cross validation (Not real folds cause sample will typically overlap)
+- dataset_paths
+- poolers
+- classifiers
+- model_names
+- evaluator
+- device
+- logs_folder: Folder in which the experiments logs are to be stored, will create folder if it doesn't already exist
 
+Methods:
+- log_data: Logs experiment results to logs_folder
+- run_all: single_batch_limit is not yet implemented
 
 # TODO
 - make concat work properly
+- store val_size, test_size
