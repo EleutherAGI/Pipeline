@@ -149,3 +149,4 @@ Methods:
 - add classification using attention
 - BERT type models
 - log number of params per model
+- larger datasets: generate embeddings on-the-fly
