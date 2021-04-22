@@ -104,7 +104,7 @@ Methods:
 - predict: Given testset, returns its corresponding predictions from the classifier
     
 ## RunExperiments
-Runs a batch of experiments and logs them
+Runs all possible combinations of experiments given datasets, poolers, classifiers and language models, and logs them
 
 \_\_init\_\_ args:
 - n_folds: Number of folds for cross validation (Not real folds cause sample will typically overlap)
