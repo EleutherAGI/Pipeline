@@ -62,10 +62,10 @@ Selects (combinations of) tokens from hugging face output dictionary
 
 \_\_init\_\_ args:
 layer: Which layer the tokens are to be selected from
--- layer index
--- list of layer indices
--- -1: second to last layer
--- 'all': all layers except the first and last one
+- - layer index
+- - list of layer indices
+- - -1: second to last layer
+- - 'all': all layers except the first and last one
 quantile: Which quantile of tokens is selected (0. = first token, 1. = last)
 -- quantile
 -- -1: last token
