@@ -2,9 +2,9 @@
 We want to gain useful generalizable knowledge about the inner workings of non-finetuned transformer language models. We achieve this by running a number of experiments to probe the hidden layer activations using different datasets, model sizes, pooling methods and classifiers, and visualize this interactively with a StreamLit app. This information will help us in future embedding experiments and eegi, among other things.
 
 # How to use
-1. Prepare data by the running get_data.py script. -data_save_path
+1. Prepare data by the running get_data.py script. ```python get_data <data_save_path>```
 2. Create classifiers
-Classifiers come in two flavours: sklearn and pytorch.
+Classifiers come in two flavours: sklearn and pytorch, 
 
 
 BaseClass Sklearn style classifiers (SingleStepOpt) get fitted by a single step and depending on the output, require a set of thresholds to be found. Pytorch style classifiers (MultiStepOpt) use gradient descent and are optimizer over multiple training epochs.
@@ -49,7 +49,7 @@ Methods:
 - \_\_getitem\_\_
 
 ## LMModel
-(Hugging Face) Language Model Wrapper
+(Hugging Face) Language Model Model Wrapper
 
 init args:
 - model_name: Hugging face model name or dictionary that contains a model and tokenizer
