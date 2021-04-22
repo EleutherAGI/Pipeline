@@ -61,17 +61,17 @@ Methods:
 Selects (combinations of) tokens from hugging face output dictionary
 
 \_\_init\_\_ args:
-layer: Which layer the tokens are to be selected from
-- layer index
-- list of layer indices
-- -1: second to last layer
-- 'all': all layers except the first and last one
-quantile: Which quantile of tokens is selected (0. = first token, 1. = last)
-- quantile
-- -1: last token
-layer_method: If multiple layers are selected, layer_method can be used to reduce them
-- 'mean', 'max', 'min': pool over layer dimension
-- 'extend': concatenates embeddings in embed dimension
+- layer: Which layer the tokens are to be selected from
+    - layer index
+    - list of layer indices
+    - -1: second to last layer
+    - 'all': all layers except the first and last one
+- quantile: Which quantile of tokens is selected (0. = first token, 1. = last)
+    - quantile
+    - -1: last token
+- layer_method: If multiple layers are selected, layer_method can be used to reduce them
+    - 'mean', 'max', 'min': pool over layer dimension
+    - 'extend': concatenates embeddings in embed dimension
 
 Methods:
 - \_\_call\_\_: Takes hugging face output dictionary and returns (batch_size, hidden_size) sized tensor of embeddings
