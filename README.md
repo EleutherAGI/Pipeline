@@ -40,18 +40,16 @@ class SingleLayer(MultiStepOpt):
 4. Call run_exp. For example
 ``` py
 import glob
-from pipeline.dataset import NLPDataset
-from pipeline.languagemodel import LMModel
-from pipeline.pooling import PoolToken
-from pipeline.classifier import SingleStepOpt, MultiStepOpt
-from pipeline.experiment import RunExperiments, evaluator
+import torch
+import torch.nn as nn
+from pipeline import NLPDataset, LMModel, PoolToken, SingleStepOpt, MultiStepOpt, RunExperiments, evaluator
 from classifiers import LDA, SingleLayer
 
 device = 'cuda' if torch.cuda.is_available() else 'cpu'
 n_folds = 10
 dataset_paths = glob.glob('data/*')
 poolers = [PoolToken(layer = 1), PoolToken(quantile = 0.4), PoolToken(layer = 'all', layer_method = 'mean')]
-classifiers = [LDA(), SingleLayer()]
+classifiers = [LDA, SingleLayer]
 model_names = ['gpt2', 'gpt2-large']
 
 exps = RunExperiments(n_folds, dataset_paths, poolers, classifiers, model_names, evaluator, device)
@@ -148,3 +146,18 @@ Methods:
 # TODO
 - make concat work properly
 - store val_size, test_size
+# TODO
+# pooler
+# logging
+# run experiments to check hypotheses 
+# BERT type models
+
+# # What classification architecture works best?
+    \item How does this generalize over different dataset and model sizes?
+    \item How do unsupervised methods hold up vs. supervised ones?
+    \item Is there transfer of knowledge between datasets, e.g. does a model trained on normativity classification perform well on sentiment classification
+
+# logging
+# pooler
+# number of params per model
+# attention
