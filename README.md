@@ -2,14 +2,15 @@
 We want to gain useful generalizable knowledge about the inner workings of non-finetuned transformer language models. We achieve this by running a number of experiments to probe the hidden layer activations using different datasets, model sizes, pooling methods and classifiers, and visualize this interactively with a StreamLit app. This information will help us in future embedding experiments and eegi, among other things.
 
 # How to use
-1. Prepare data by the running get_data.py script. ```python get_data <data_save_path>```
+1. Prepare data by the running get_data.py script: ```python get_data <data_save_path>```
 2. Create classifiers
-Classifiers come in two flavours: sklearn and pytorch, 
+Classifiers come in two flavours: sklearn and pytorch, these are taken care off by the base classes SingleStepOpt and MultiStepOpt resp. (See Modules section).
 
-
-BaseClass Sklearn style classifiers (SingleStepOpt) get fitted by a single step and depending on the output, require a set of thresholds to be found. Pytorch style classifiers (MultiStepOpt) use gradient descent and are optimizer over multiple training epochs.
 In both cases they need an input_size argument and a str name attribute for logging.
-Sklearn classifiers need a classifier and a bool whether or not the targets are discrete (binary). For example
+Sklearn-type classifiers need the attributes:
+- s
+- d
+a classifier attribute and a bool whether or not the targets are discrete (binary). For example
 ``` py
 class LDA(SingleStepOpt):
     def __init__(self, input_size):
@@ -78,19 +79,19 @@ Methods:
 
 ## Classifiers
 ### SingleStepOpt
-Base class for pytorch style classifiers
+Base class for sklearn style classifiers.
+Distinguished between regression (continuous targets) and classification (binary targets)
 
 \_\_init\_\_ args: None
 
 Methods:
-- init_optimizer: Initializes optimizer, scheduler and loss function
-- training_step: Training step used in fit method
-- test_step: Test step used in fit method for validation and in predict to get predictions
-- fit: Training loop, stores losses
-- predict: Given testset, returns its corresponding predictions from the classifier
+- fit: fits classifier and sets optimal thresholds if the task is classification
+- set_thresholds: Uses a validation set to find optimal thresholds for both accuracy and F1
+- predict: Returns predictions for targets, using the thresholds if necessary
+- forward: Maps inputs to targets
 
 ### MultiStepOpt
-Base class for pytorch style classifiers
+Base class for pytorch style classifiers, uses gradient descent.
 
 \_\_init\_\_ args:
 - batch_size
