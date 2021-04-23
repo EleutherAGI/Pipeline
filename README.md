@@ -6,8 +6,7 @@ We want to gain useful generalizable knowledge about the inner workings of non-f
 2. Create classifiers
 Classifiers come in two flavours: sklearn and pytorch, these are taken care off by the base classes SingleStepOpt and MultiStepOpt resp. (See Modules section).
 
-In both cases they need an input_size argument and a str name attribute for logging.
-Sklearn-type classifiers need the attributes:
+Sklearn-type classifiers need following the attributes:
 - name: identifier name for logging
 - classifier: sklearn classifier. Needs to have a fit and transform method. If transform is not available the forward methods needs to be overwritten.
 - discrete_targets: boolean to indicate whether the classifier requires binary (0 or 1) targets.
