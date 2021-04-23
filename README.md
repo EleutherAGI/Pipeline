@@ -2,7 +2,7 @@
 We want to gain useful generalizable knowledge about the inner workings of non-finetuned transformer language models. We achieve this by running a number of experiments to probe the hidden layer activations using different datasets, model sizes, pooling methods and classifiers, and visualize this interactively with a StreamLit app. This information will help us in future embedding experiments and eegi, among other things.
 
 # Usage
-1. Prepare data by the running get_data.py script: ```python get_data <data_save_path>```
+1. Prepare data by the running get_data.py script: ```python get_data.py <data_save_path>```
 2. Create classifiers
 Classifiers come in two flavours: sklearn and pytorch, these are taken care off by the base classes SingleStepOpt and MultiStepOpt resp. (See Modules section).
 
