@@ -17,12 +17,21 @@ from sklearn.gaussian_process import GaussianProcessClassifier
 from sklearn.gaussian_process.kernels import RBF
 from sklearn.naive_bayes import GaussianNB
 from sklearn.linear_model import LogisticRegression
-from sklearn.metrics import accuracy_score, f1_score
-
+from sklearn.metrics import accuracy_score, f1_score, r2_score
+from sklearn.decomposition import PCA
 from torch.utils.data import Dataset, DataLoader, random_split
 
 from transformers import AutoModel, AutoTokenizer
 
+
+def list_to_dict(L):
+    D = dict()
+    for t in L[0]:
+        D[t] = []
+    for Li in L:
+        for t, item in Li.items():
+            D[t].append(item)
+    return D
 
 class NLPDataset(Dataset):
     """
@@ -43,32 +52,37 @@ class NLPDataset(Dataset):
                 self.json = json.load(json_file)
         else:
             self.json = json_input
-        self.sentences = list(self.json['data']['sentences'].values())
-        self.y = list(self.json['data']['labels'].values())
+        self.sentences = self.json['data']['sentences']
+        self.y = self.json['data']['labels']
         self.meta_dict = {k: self.json[k] for k in set(list(self.json.keys())) - set(['data'])}
         
         self.data_in_memory = False
-        self.batch_size = 256
+        self.batch_size = 32
         del self.json
-    
+
     def load_embeds_into_memory(self, model, pooler):
         data_iter = DataLoader(self.sentences, batch_size = self.batch_size, shuffle = False,
                                num_workers=0, drop_last = False, pin_memory=False)
         
         hidden_mult, extra_dim = pooler.hidden_mult, pooler.extra_dim
-        if extra_dim == 0:
-            X_tot = torch.zeros(len(self.sentences), hidden_mult*model.model.config.hidden_size)
+        #if extra_dim == 0:
+        #    X_tot = torch.zeros(len(self.sentences), hidden_mult*model.model.config.hidden_size)
+        #else:
+        #    X_tot = torch.zeros(len(self.sentences), hidden_mult*model.model.config.hidden_size, extra_dim)
+        if hidden_mult > 1:
+            X_tot = torch.zeros(len(self.sentences), hidden_mult, model.model.config.hidden_size)
         else:
-            X_tot = torch.zeros(len(self.sentences), hidden_mult*model.model.config.hidden_size, extra_dim)
+            X_tot = torch.zeros(len(self.sentences), model.model.config.hidden_size)
+
         for i, sentence in enumerate(data_iter):
             idx = i*self.batch_size
             output = model(sentence)
             embed = pooler(output)
             X_tot[idx:idx+len(sentence)] = embed
             del embed
-        if extra_dim != 0:
-            X_tot = X_tot.transpose(1, 2).reshape(len(self.sentences)*extra_dim, -1)
-            self.y = list(np.tile(np.array(self.y), (extra_dim, 1)).T.reshape(-1))
+        #if extra_dim != 0:
+        #    X_tot = X_tot.transpose(1, 2).reshape(len(self.sentences)*extra_dim, -1)
+        #    self.y = list(np.tile(np.array(self.y), (extra_dim, 1)).T.reshape(-1))
         self.X = X_tot
 
     def __len__(self):
@@ -94,7 +108,10 @@ class LMModel():
         self.device = device
         if isinstance(model_name, str):
             self.tokenizer = AutoTokenizer.from_pretrained(model_name)
-            self.tokenizer.pad_token = self.tokenizer.eos_token
+            try:
+                self.tokenizer.pad_token = self.tokenizer.eos_token
+            except:
+                pass
             self.model = AutoModel.from_pretrained(model_name, return_dict=True)
         elif isinstance(model_name, dict):
             self.tokenizer = model_name['tokenizer']
@@ -103,6 +120,7 @@ class LMModel():
         self.model = self.model.eval().to(self.device)
 
     def __call__(self, text):
+        torch.cuda.empty_cache()
         inputs = self.tokenizer(text, padding = True,  return_tensors="pt")
         with torch.no_grad():
             outputs = self.model(input_ids = inputs.input_ids.to(self.device),
@@ -110,6 +128,7 @@ class LMModel():
                                  output_attentions = False, output_hidden_states = True,
                                  return_dict = True)
         outputs['attention_mask'] = inputs.attention_mask
+        #print(inputs.attention_mask.shape)
         return outputs
 
 
@@ -190,7 +209,7 @@ class PoolToken():
 
         X = torch.zeros(n_layers, batch_size, seq_len, hidden_size)
         for l in range(n_layers):
-            X[l] = output_dict['hidden_states'][l]
+            X[l] = output_dict['hidden_states'][l].detach().cpu()
         
         # select layers
         idx_layer = self.get_layer_idx(self.layer, n_layers)
@@ -207,16 +226,19 @@ class PoolToken():
             X = X.min(0, keepdim = True)[0]
 
         # select quantiles
-        attention_mask = output_dict['attention_mask']
+        attention_mask = output_dict['attention_mask'].detach().cpu()
         idx_quantile = self.get_quantile_idx(self.quantile, attention_mask)
         X = X[:, torch.arange(batch_size), idx_quantile]
 
         del output_dict
 
         X = X.transpose(0, 1)
-        if self.layer_method == 'extend':
-            X = X.reshape(batch_size, -1)
-        return X.squeeze() #X.reshape(-1, X.shape[-1])[torch.LongTensor(idx_quantile)]
+        X = X.squeeze()
+            
+        #if self.layer_method == 'extend':
+        #    X = X.reshape(batch_size, -1)
+        # if extend the shape is batch_size, layer, hidden_size, otherwise batch_size, hidden_size
+        return X #X.reshape(-1, X.shape[-1])[torch.LongTensor(idx_quantile)]
 
 
 class SingleStepOpt():
@@ -268,34 +290,52 @@ class SingleStepOpt():
         # thresholds only required for classification
         if classification:
             self.set_thresholds(valset)
-        
+    
     def set_thresholds(self, valset):
         y_target = np.array(valset.y)# valset.dataset.y
         if self.single_batch:
             y_pred = self.forward(np.array(valset.X))
         else:
             pass
+        #print(y_pred.shape)
+        if y_pred.shape[1] == 0:
+            y_pred = np.ones(y_target.shape)
+        #self.y_pred = y_pred
+        #self.y = y_target
 
         acc_thresholds = []
         F1_thresholds = []
 
         y_min, y_max = y_pred.min(), y_pred.max()
+
+        if y_min != y_max:
+            self.degenerate = False
         #if self.binary:
-        eps = (y_max-y_min)/self.n_steps
-        for theta in np.arange(y_min, y_max, eps):
-            y_rounded = np.where(y_pred > theta, 1, 0)
-            acc_thresholds.append(accuracy_score(y_target, y_rounded))
-            F1_thresholds.append(f1_score(y_target, y_rounded))
-        
-        self.acc_threshold = np.argmax(acc_thresholds)*eps + y_min
-        self.F1_threshold = np.argmax(F1_thresholds)*eps + y_min
+            eps = (y_max-y_min)/self.n_steps
+            for theta in np.arange(y_min, y_max, eps):
+                y_rounded = np.where(y_pred > theta, 1, 0)
+                acc_thresholds.append(accuracy_score(y_target, y_rounded))
+                F1_thresholds.append(f1_score(y_target, y_rounded))
+            
+            self.acc_threshold = np.argmax(acc_thresholds)*eps + y_min
+            self.F1_threshold = np.argmax(F1_thresholds)*eps + y_min
+        else:
+            self.degenerate = True
+            self.acc_threshold = np.argmax([accuracy_score(y_target, np.zeros(y_target.shape)),
+                                            accuracy_score(y_target, np.ones(y_target.shape))])
+            self.F1_threshold = np.argmax([f1_score(y_target, np.zeros(y_target.shape)),
+                                           f1_score(y_target, np.ones(y_target.shape))])
     
     def predict(self, testset):
         y_target = np.array(testset.y) #testset.dataset.y
         y_pred = self.forward(np.array(testset.X)) #testset.dataset.X)
         if self.classification:
-            y_acc = np.where(y_pred > self.acc_threshold, 1, 0)
-            y_F1 = np.where(y_pred > self.F1_threshold, 1, 0)
+            if self.degenerate:
+                y_acc = self.acc_threshold*y_target
+                y_F1 = self.F1_threshold*y_target
+            else:
+                y_acc = np.where(y_pred > self.acc_threshold, 1, 0)
+                y_F1 = np.where(y_pred > self.F1_threshold, 1, 0)
             return y_pred, y_acc, y_F1, y_target
         else:
             return y_pred, y_target
@@ -332,7 +372,7 @@ class MultiStepOpt(nn.Module):
     -------
     Given testset, returns its corresponding predictions from the classifier
     """
-    def __init__(self, batch_size = 128, max_epoch = 50):
+    def __init__(self, batch_size = 128, max_epoch = 30):
         super().__init__()
         self.single_step = False
         self.train_loss, self.val_loss, self.test_loss = [], [], []
@@ -376,7 +416,8 @@ class MultiStepOpt(nn.Module):
             self.test_loss.append(loss.item())
             return y_pred, y
     
-    def get_dataloader(self, dataset):
+    @staticmethod
+    def get_dataloader(dataset):
         return DataLoader(dataset, batch_size = self.batch_size,
                           shuffle = True, num_workers = 0, drop_last = False, pin_memory = False)
     
@@ -427,14 +468,15 @@ def evaluator(ys, classification):
     """
     if classification:
         y_pred, y_acc, y_F1, y_target = ys
-        MSE = np.mean((y_pred - y_target)**2)
-        acc = accuracy_score(y_acc, y_target)
-        F1 = f1_score(y_F1, y_target)
-        return [MSE.item(), acc.item(), F1.item()]
+        #MSE = np.mean((y_pred - y_target)**2)
+        acc = accuracy_score(y_target, y_acc)
+        F1 = f1_score(y_target, y_F1)
+        return {'Accuracy':acc.item(), 'F1':F1.item()}
     else:
         y_pred, y_target = ys
+        R2 = r2_score(y_target, y_pred)
         MSE = np.mean((y_pred - y_target)**2)
-        return [MSE.item()]
+        return {'MSE':MSE.item(), 'R2':R2.item()}
 
 class SimpleDataset(Dataset):
     def __init__(self, X, y):
@@ -447,14 +489,22 @@ class SimpleDataset(Dataset):
     def __getitem__(self, idx):
         return self.X[idx], self.y[idx]
 
-def real_random_split(dataset, splits):
+def real_random_split(dataset, splits, mult = 1):
     train_len, val_len, test_len = splits
-    idxs = torch.randperm(len(dataset))
+    idxs = torch.randperm(len(dataset.y))
     new_X = dataset.X[idxs]
     new_y = torch.Tensor(dataset.y)[idxs]
-    ds1 = SimpleDataset(new_X[:train_len], list(new_y[:train_len]))
-    ds2 = SimpleDataset(new_X[train_len:train_len+val_len], list(new_y[train_len:train_len+val_len]))
-    ds3 = SimpleDataset(new_X[-test_len:], list(new_y[-test_len:]))
+    
+    ds1 = SimpleDataset(new_X[:train_len].reshape(mult*train_len, -1),
+                        list(itertools.chain.from_iterable([mult*[sy] for sy in new_y[:train_len]])))
+    if mult > 1:
+        ds2 = SimpleDataset(new_X[train_len:train_len+val_len, -1], list(new_y[train_len:train_len+val_len]))
+        ds3 = SimpleDataset(new_X[train_len+val_len:train_len+val_len+test_len, -1],
+                            list(new_y[train_len+val_len:train_len+val_len+test_len]))
+    else:
+        ds2 = SimpleDataset(new_X[train_len:train_len+val_len], list(new_y[train_len:train_len+val_len]))
+        ds3 = SimpleDataset(new_X[train_len+val_len:train_len+val_len+test_len],
+                            list(new_y[train_len+val_len:train_len+val_len+test_len]))
     return ds1, ds2, ds3
 
 
@@ -488,7 +538,6 @@ class RunExperiments():
     device: str
     logs_folder: str
         Folder in which the experiments logs are to be stored, will create folder if it doesn't already exist
-
     log_data
     -------
     Logs experiment results to logs_folder
@@ -497,7 +546,7 @@ class RunExperiments():
     -------
     single_batch_limit is not yet implemented
     """
-    def __init__(self, n_folds, dataset_paths, poolers, classifiers, model_names, evaluator, device, logs_folder = 'experiment_logs'):
+    def __init__(self, n_folds, dataset_paths, poolers, classifiers, model_names, evaluator, device, logs_folder = 'experiment_logs3'):
         self.dataset_paths = dataset_paths
         self.poolers = poolers
         self.classifiers = classifiers
@@ -507,15 +556,18 @@ class RunExperiments():
         self.device = device
         self.logs_folder = logs_folder
     
-    def log_data(self, all_metrics, meta_dict, pooler, classifier, model_name):
+    def log_data(self, all_metrics, meta_dict, pooler, classifier, model_name, classification):
         try:
             os.mkdir(self.logs_folder)
         except:
             pass
-        
+
         try:
-            numbers = os.listdir(self.logs_folder)
-            numbers = [int(number.split('_')[-1].split('.')[0]) for number in numbers]
+            files = os.listdir(self.logs_folder)
+            numbers = []
+            for file in files:
+                if file[-4:] == 'json':
+                    numbers.append(int(file.split('_')[-1].split('.')[0]))
             new_num = max(numbers)+1
         except:
             new_num = 0
@@ -527,17 +579,22 @@ class RunExperiments():
         exp_dict['expdata'] = {'model':model_name, 'classifier':classifier.name, 'layer':layer,
                                'quantile':quantile, 'layer_method':layer_method,
                                'quantile_method':quantile_method, 'attention':False}
-        exp_dict['data'] = {'metrics':all_metrics}
+        exp_dict['data'] = list_to_dict(all_metrics)
+
         try:
-            exp_dict['data']['losses'] = [classifier.train_loss.tolist(), classifier.val_loss, classifier.test_loss]
+            exp_dict['data']['train loss'] = classifier.train_loss
+            exp_dict['data']['validation loss'] = classifier.val_loss
+            exp_dict['data']['test loss'] = classifier.test_loss
         except:
-            exp_dict['data']['losses'] = [[0], [0], [0]]
+            exp_dict['data']['train loss'] = [0]
+            exp_dict['data']['validation loss'] = [0]
+            exp_dict['data']['test loss'] = [0]
         
         with open(os.path.join(self.logs_folder, f'experiment_{new_num}.json'), 'w') as fp:
             json.dump(exp_dict, fp)
-    
-    def run_all(self, single_batch_limit=True, val_size = 0.1, test_size = 0.2):
 
+    def run_all(self, single_batch_limit = True, val_size = 0.1, test_size = 0.2):
+        single_batch_limit = True
         len_1 = tot_len(self.dataset_paths, self.poolers, self.model_names)
         len_2 = tot_len(self.classifiers)
 
@@ -545,15 +602,19 @@ class RunExperiments():
             # load model and data
             model = LMModel(model_name, self.device)
             dataset = NLPDataset(dataset_path)
+            
+            #dataset.meta_dict['name'] = dataset.meta_dict['name'] + 'without period'
+            #sents = dataset.sentences
+            #dataset.sentences = period(sents, period = False)
 
             single_batch = True #(model.config.n_layers * data.meta_dict['sentences'] < single_batch_limit)
-
+            mult = pooler.hidden_mult
             if single_batch:
                 # load all embeddings into memory
                 #data.batch_size
                 dataset.load_embeds_into_memory(model, pooler)
                 del model.model, model.tokenizer
-
+            
             for n, classifier_uninit in enumerate(self.classifiers):
 
                 all_metrics = []
@@ -564,7 +625,7 @@ class RunExperiments():
                     val_len = int(val_size*len(dataset))
                     train_len = len(dataset) - test_len - val_len
                     # random_split doesn't actually split the data itself, it keeps the data the same and selects a subset from the indices
-                    trainset, valset, testset = real_random_split(dataset, [train_len, val_len, test_len])
+                    trainset, valset, testset = real_random_split(dataset, [train_len, val_len, test_len], mult)
 
                     input_size = trainset[0][0].shape[-1]
                     classifier = classifier_uninit(input_size)
@@ -585,7 +646,72 @@ class RunExperiments():
                     # add to store
                     all_metrics += [metrics]
                 #print(all_metrics)
-                self.log_data(all_metrics, dataset.meta_dict, pooler, classifier, model_name)
+                self.log_data(all_metrics, dataset.meta_dict, pooler, classifier, model_name, classification)
                 print(f'time: {round(time.time()-t, 1)}s', f'progress: {k*len_2 + n + 1}/{len_1*len_2}')
                 t = time.time()
+
+                #self.y = classifier.y
+                #self.y_pred = classifier.y_pred
                 del classifier
+
+    def run_all_lens(self, max_train_lens, val_size = 0.1, test_size = 0.2):
+        single_batch_limit = True
+        len_1 = tot_len(self.dataset_paths, self.poolers, self.model_names)
+        len_2 = tot_len(self.classifiers)
+
+        for k, (dataset_path, pooler, model_name) in enumerate(itertools.product(self.dataset_paths, self.poolers, self.model_names)):
+            # load model and data
+            model = LMModel(model_name, self.device)
+            dataset = NLPDataset(dataset_path)
+
+            single_batch = True #(model.config.n_layers * data.meta_dict['sentences'] < single_batch_limit)
+            mult = pooler.hidden_mult
+            if single_batch:
+                # load all embeddings into memory
+                #data.batch_size
+                dataset.load_embeds_into_memory(model, pooler)
+                del model.model, model.tokenizer
+            
+            for n, classifier_uninit in enumerate(self.classifiers):
+
+                for max_train_len in max_train_lens:
+                    all_metrics = []
+                    t = time.time()
+                    for fold in range(self.n_folds):
+                        # split data
+                        test_len = int(test_size*len(dataset))
+                        val_len = int(val_size*len(dataset))
+                        #train_len = len(dataset) - test_len - val_len
+                        train_len = max_train_len
+                        
+                        # random_split doesn't actually split the data itself, it keeps the data the same and selects a subset from the indices
+                        trainset, valset, testset = real_random_split(dataset, [train_len, val_len, test_len])
+                        trainset, valset, testset = real_random_split(dataset, [train_len, val_len, test_len], mult)
+
+                        input_size = trainset[0][0].shape[-1]
+                        classifier = classifier_uninit(input_size)
+                        classifier.device = self.device
+                        
+                        # fit data
+                        classification = (dataset.meta_dict['task'] == 'Classification')
+                        
+                        # assert dataset.meta_dict['task'] is either classification or regression
+                        classifier.fit(trainset, valset, pooler, single_batch, classification)
+
+                        # make predictions
+                        ys = classifier.predict(testset)
+
+                        # evaluate predictions
+                        metrics = self.evaluator(ys, classification)
+
+                        # add to store
+                        all_metrics += [metrics]
+                    #print(all_metrics)
+                    dataset.meta_dict['train len'] = max_train_len
+                    self.log_data(all_metrics, dataset.meta_dict, pooler, classifier, model_name, classification)
+                    print(f'time: {round(time.time()-t, 1)}s', f'progress: {k*len_2 + n + 1}/{len_1*len_2}')
+                    t = time.time()
+
+                    #self.y = classifier.y
+                    #self.y_pred = classifier.y_pred
+                    del classifier
